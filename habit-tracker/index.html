@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Daily Focus Planner</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎯</text></svg>">
+  <!-- TypeScript Transpiler CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/typescript/5.3.3/typescript.min.js"></script>
+
+  <style>
+    * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body { background-color: #f8fafc; color: #0f172a; margin: 0; padding: 40px 16px; }
+    .container { max-width: 500px; margin: 0 auto; }
+    .card { background: white; padding: 24px; border-radius: 16px; border: 1px solid #e2e8f0; box-shadow: 0 4px 12px rgba(0,0,0,0.03); }
+    .stats { display: flex; gap: 12px; margin-bottom: 20px; }
+    .stat-box { flex: 1; background: #f1f5f9; padding: 12px; border-radius: 10px; text-align: center; }
+    .stat-box .num { font-size: 18px; font-weight: 700; color: #2563eb; }
+    .stat-box .label { font-size: 11px; color: #64748b; font-weight: 600; text-transform: uppercase; }
+    .input-group { display: flex; gap: 8px; margin-bottom: 20px; }
+    input[type="text"] { flex: 1; padding: 10px 14px; border: 1px solid #cbd5e1; border-radius: 8px; outline: none; }
+    input[type="number"] { width: 80px; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; outline: none; }
+    select { padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; background: white; }
+    button.add-btn { background: #059669; color: white; border: none; padding: 10px 16px; border-radius: 8px; font-weight: 600; cursor: pointer; }
+    button.add-btn:hover { background: #047857; }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <div class="card">
+      <h1 style="font-size: 20px; font-weight: 700; margin: 0 0 16px 0;">Focus Planner</h1>
+
+      <div class="stats">
+        <div class="stat-box">
+          <div class="num" id="completedStat">0/0</div>
+          <div class="label">Tasks Completed</div>
+        </div>
+        <div class="stat-box">
+          <div class="num" id="timeStat">0 mins</div>
+          <div class="label">Focused Time</div>
+        </div>
+      </div>
+
+      <form id="taskForm" class="input-group">
+        <input type="text" id="taskInput" placeholder="Task name..." required />
+        <input type="number" id="timeInput" placeholder="Mins" min="5" max="240" required />
+        <select id="prioritySelect">
+          <option value="high">High</option>
+          <option value="medium">Med</option>
+          <option value="low">Low</option>
+        </select>
+        <button type="submit" class="add-btn">Add</button>
+      </form>
+
+      <ul id="taskList" style="list-style: none; padding: 0; margin: 0;"></ul>
+    </div>
+  </div>
+
+  <!-- Embedded TypeScript Source -->
+  <script type="text/typescript" id="ts-code">
+    interface Task {
+      id: number;
+      title: string;
+      minutes: number;
+      priority: 'high' | 'medium' | 'low';
+      done: boolean;
+    }
+
+    class FocusApp {
+      private tasks: Task[] = [
+        { id: 1, title: 'Review pull request', minutes: 20, priority: 'high', done: false },
+        { id: 2, title: 'Update documentation', minutes: 15, priority: 'medium', done: true }
+      ];
+
+      private form: HTMLFormElement;
+      private titleInput: HTMLInputElement;
+      private timeInput: HTMLInputElement;
+      private prioritySelect: HTMLSelectElement;
+      private listElement: HTMLUListElement;
+      private completedStat: HTMLElement;
+      private timeStat: HTMLElement;
+
+      constructor() {
+        this.form = document.getElementById('taskForm') as HTMLFormElement;
+        this.titleInput = document.getElementById('taskInput') as HTMLInputElement;
+        this.timeInput = document.getElementById('timeInput') as HTMLInputElement;
+        this.prioritySelect = document.getElementById('prioritySelect') as HTMLSelectElement;
+        this.listElement = document.getElementById('taskList') as HTMLUListElement;
+        this.completedStat = document.getElementById('completedStat') as HTMLElement;
+        this.timeStat = document.getElementById('timeStat') as HTMLElement;
+
+        this.init();
+      }
+
+      private init(): void {
+        this.form.addEventListener('submit', (e: Event) => {
+          e.preventDefault();
+          this.addTask();
+        });
+
+        this.render();
+      }
+
+      private addTask(): void {
+        const title = this.titleInput.value.trim();
+        const minutes = parseInt(this.timeInput.value, 10);
+        if (!title || isNaN(minutes)) return;
+
+        const newTask: Task = {
+          id: Date.now(),
+          title,
+          minutes,
+          priority: this.prioritySelect.value as Task['priority'],
+          done: false
+        };
+
+        this.tasks.unshift(newTask);
+        this.titleInput.value = '';
+        this.timeInput.value = '';
+        this.render();
+      }
+
+      public toggleTask(id: number): void {
+        this.tasks = this.tasks.map((t: Task) => {
+          if (t.id === id) {
+            return { ...t, done: !t.done };
+          }
+          return t;
+        });
+        this.render();
+      }
+
+      public deleteTask(id: number): void {
+        this.tasks = this.tasks.filter((t: Task) => t.id !== id);
+        this.render();
+      }
+
+      private getPriorityColor(priority: Task['priority']): string {
+        switch (priority) {
+          case 'high': return '#ef4444';
+          case 'medium': return '#f59e0b';
+          case 'low': return '#10b981';
+        }
+      }
+
+      private render(): void {
+        this.listElement.innerHTML = '';
+
+        const doneCount = this.tasks.filter((t) => t.done).length;
+        const totalMinutes = this.tasks
+          .filter((t) => t.done)
+          .reduce((acc, t) => acc + t.minutes, 0);
+
+        this.completedStat.textContent = `${doneCount}/${this.tasks.length}`;
+        this.timeStat.textContent = `${totalMinutes} mins`;
+
+        this.tasks.forEach((task: Task) => {
+          const li = document.createElement('li');
+          li.style.cssText = `
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 16px;
+            background: ${task.done ? '#f8fafc' : '#ffffff'};
+            border: 1px solid ${task.done ? '#e2e8f0' : '#cbd5e1'};
+            border-radius: 10px;
+            margin-bottom: 8px;
+            opacity: ${task.done ? '0.6' : '1'};
+          `;
+
+          li.innerHTML = `
+            <div style="display: flex; align-items: center; gap: 12px;">
+              <input 
+                type="checkbox" 
+                ${task.done ? 'checked' : ''} 
+                style="width: 18px; height: 18px; cursor: pointer;"
+                onchange="window.focusApp.toggleTask(${task.id})"
+              />
+              <div>
+                <span style="font-weight: 600; color: #0f172a; text-decoration: ${task.done ? 'line-through' : 'none'};">
+                  ${task.title}
+                </span>
+                <div style="font-size: 11px; color: #64748b; margin-top: 2px;">
+                  ⏱️ ${task.minutes} mins
+                </div>
+              </div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <span style="font-size: 10px; padding: 2px 6px; border-radius: 4px; background: ${this.getPriorityColor(task.priority)}; color: white; font-weight: 700; text-transform: uppercase;">
+                ${task.priority}
+              </span>
+              <button 
+                onclick="window.focusApp.deleteTask(${task.id})"
+                style="background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 14px;"
+                onmouseover="this.style.color='#ef4444'"
+                onmouseout="this.style.color='#94a3b8'"
+              >✕</button>
+            </div>
+          `;
+
+          this.listElement.appendChild(li);
+        });
+      }
+    }
+
+    declare global {
+      interface Window {
+        focusApp: FocusApp;
+      }
+    }
+
+    window.focusApp = new FocusApp();
+  </script>
+
+  <!-- In-Browser Compiler Execution -->
+  <script>
+    window.addEventListener('DOMContentLoaded', () => {
+      const tsCode = document.getElementById('ts-code').textContent;
+      const jsCode = ts.transpile(tsCode, { 
+        target: ts.ScriptTarget.ES2015, 
+        module: ts.ModuleKind.None 
+      });
+
+      const scriptElement = document.createElement('script');
+      scriptElement.text = jsCode;
+      document.body.appendChild(scriptElement);
+    });
+  </script>
+</body>
+</html>
